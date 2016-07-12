@@ -156,7 +156,7 @@ namespace R4nd0mApps.TddStud10.Engine
                                 var tests = testsPerAssembly.GetOrAdd(dl, _ => new ConcurrentBag<TestCase>());
                                 tests.Add(ea);
                             }));
-                    disc.DiscoverTests(FilePath.NewFilePath(assemblyPath));
+                    disc.DiscoverTests(buildOutputRoot, FilePath.NewFilePath(assemblyPath));
                 });
 
             var discoveredUnitTestsStore = Path.Combine(rsp.solutionBuildRoot.Item, "Z_discoveredUnitTests.xml");

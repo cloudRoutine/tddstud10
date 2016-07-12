@@ -12,6 +12,6 @@ type XUnitTestExecutor() =
     let fh = TestPlatformExtensions.createFrameworkHandle
     let testExecuted = new Event<_>()
     member public t.TestExecuted = testExecuted.Publish
-    member public t.ExecuteTests(tests : TestCase seq) = 
-        let te = TestPlatformExtensions.loadTestAdapter() :?> ITestExecutor
+    member public t.ExecuteTests(binDir, tests : TestCase seq) = 
+        let te = binDir |> TestPlatformExtensions.loadTestAdapter :?> ITestExecutor
         te.RunTests(tests, rc, fh testExecuted.Trigger)

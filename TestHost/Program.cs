@@ -1,15 +1,15 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Linq;
-using System.ServiceModel;
-using System.Threading.Tasks;
-using Microsoft.FSharp.Control;
+﻿using Microsoft.FSharp.Control;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using R4nd0mApps.TddStud10.Common.Domain;
 using R4nd0mApps.TddStud10.TestExecution.Adapters;
 using R4nd0mApps.TddStud10.TestHost.Diagnostics;
 using R4nd0mApps.TddStud10.TestRuntime;
+using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Linq;
+using System.ServiceModel;
+using System.Threading.Tasks;
 
 namespace R4nd0mApps.TddStud10.TestHost
 {
@@ -31,15 +31,15 @@ namespace R4nd0mApps.TddStud10.TestHost
         {
             LogInfo("TestHost: Entering Main.");
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomainUnhandledException);
-            var command = args[1];
+            var buildRoot = args[1];
             var codeCoverageStore = args[2];
             var testResultsStore = args[3];
             var discoveredUnitTestsStore = args[4];
             var testFailureInfoStore = args[5];
 
             var allTestsPassed = _debuggerAttached
-                ? RunTests(testResultsStore, discoveredUnitTestsStore, testFailureInfoStore)
-                : ExecuteTestWithCoverageDataCollection(() => RunTests(testResultsStore, discoveredUnitTestsStore, testFailureInfoStore), codeCoverageStore);
+                ? RunTests(buildRoot, testResultsStore, discoveredUnitTestsStore, testFailureInfoStore)
+                : ExecuteTestWithCoverageDataCollection(() => RunTests(buildRoot, testResultsStore, discoveredUnitTestsStore, testFailureInfoStore), codeCoverageStore);
 
             LogInfo("TestHost: Exiting Main.");
             return allTestsPassed ? 0 : 1;
@@ -70,7 +70,7 @@ namespace R4nd0mApps.TddStud10.TestHost
             LogError("Exception thrown in InvokeEngine: {0}.", e.ExceptionObject);
         }
 
-        private static bool RunTests(string testResultsStore, string discoveredUnitTestsStore, string testFailureInfoStore)
+        private static bool RunTests(string buildRoot, string testResultsStore, string discoveredUnitTestsStore, string testFailureInfoStore)
         {
             Stopwatch stopWatch = new Stopwatch();
 
@@ -96,7 +96,7 @@ namespace R4nd0mApps.TddStud10.TestHost
                                 NoteTestResults(testResults, ea);
                                 NoteTestFailureInfo(testFailureInfo, ea);
                             }));
-                    exec.ExecuteTests(test);
+                    exec.ExecuteTests(buildRoot, test);
                     LogInfo("Executing tests in {0}: Done.", test.Key);
                 });
 

@@ -17,7 +17,10 @@ type FilePath =
     
     override x.GetHashCode() = 
         match x with
-        | FilePath s -> s.ToUpperInvariant().GetHashCode()
+        | FilePath s -> 
+            match s with
+            | null -> 0
+            | _ -> s.ToUpperInvariant().GetHashCode()
     
     override x.Equals(yObj) = 
         match yObj with

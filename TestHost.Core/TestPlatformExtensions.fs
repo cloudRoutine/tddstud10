@@ -14,8 +14,8 @@ let getLocalPath() =
     |> Path.GetFullPath
     |> Path.GetDirectoryName
 
-let loadTestAdapter() = 
-    let aPath = getLocalPath() |> fun lp -> Path.Combine(lp, "xunit20\\xunit.runner.visualstudio.testadapter.dll")
+let loadTestAdapter binDir = 
+    let aPath = Path.Combine(binDir, "xunit.runner.visualstudio.testadapter.dll")
     Logger.logInfof "Loading Test Adapter from %s" aPath
     let ta = 
         Assembly.LoadFrom(aPath)
@@ -65,10 +65,6 @@ let createRunContext() =
           
           member __.RunSettings : IRunSettings = 
               Logger.logErrorf "TestPlatform: RunSettings call was unexpected"
-              null
-          
-          member __.SolutionDirectory : string = 
-              Logger.logErrorf "TestPlatform: SolutionDirectory call was unexpected"
               null
           
           member __.TestRunDirectory : string = 
