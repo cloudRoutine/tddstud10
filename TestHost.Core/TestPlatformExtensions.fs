@@ -41,6 +41,9 @@ let createDiscoverySink td =
 
 let createRunContext() = 
     { new IRunContext with
+          member __.SolutionDirectory : string = 
+              Logger.logErrorf "TestPlatform: SolutionDirectory call was unexpected"
+              null
           
           member __.GetTestCaseFilter(_ : IEnumerable<string>, 
                                       _ : Func<string, TestProperty>) : ITestCaseFilterExpression = 

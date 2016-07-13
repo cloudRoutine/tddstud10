@@ -6,7 +6,9 @@ using R4nd0mApps.TddStud10.TestHost.Diagnostics;
 using R4nd0mApps.TddStud10.TestRuntime;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.ServiceModel;
 using System.Threading.Tasks;
@@ -36,13 +38,77 @@ namespace R4nd0mApps.TddStud10.TestHost
             var testResultsStore = args[3];
             var discoveredUnitTestsStore = args[4];
             var testFailureInfoStore = args[5];
+            var timeFilter = args[6];
 
-            var allTestsPassed = _debuggerAttached
-                ? RunTests(buildRoot, testResultsStore, discoveredUnitTestsStore, testFailureInfoStore)
-                : ExecuteTestWithCoverageDataCollection(() => RunTests(buildRoot, testResultsStore, discoveredUnitTestsStore, testFailureInfoStore), codeCoverageStore);
+            if (args[1] == "discover")
+            {
+                DiscoverUnitTests(buildRoot, new DateTime(long.Parse(timeFilter)));
+                LogInfo("TestHost: Exiting Main.");
+                return 0;
+            }
+            else
+            {
+                var allTestsPassed = _debuggerAttached
+                    ? RunTests(buildRoot, testResultsStore, discoveredUnitTestsStore, testFailureInfoStore)
+                    : ExecuteTestWithCoverageDataCollection(() => RunTests(buildRoot, testResultsStore, discoveredUnitTestsStore, testFailureInfoStore), codeCoverageStore);
 
-            LogInfo("TestHost: Exiting Main.");
-            return allTestsPassed ? 0 : 1;
+                LogInfo("TestHost: Exiting Main.");
+                return allTestsPassed ? 0 : 1;
+            }
+        }
+
+        public static void FindAndExecuteForEachAssembly(string buildOutputRoot, DateTime timeFilter, Action<string> action, int? maxThreads = null)
+        {
+            int madDegreeOfParallelism = maxThreads.HasValue ? maxThreads.Value : Environment.ProcessorCount;
+            Logger.I.LogInfo("FindAndExecuteForEachAssembly: Running with {0} threads.", madDegreeOfParallelism);
+            var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".dll", ".exe" };
+            Parallel.ForEach(
+                Directory.EnumerateFiles(buildOutputRoot, "*").Where(s => extensions.Contains(Path.GetExtension(s))),
+                new ParallelOptions { MaxDegreeOfParallelism = madDegreeOfParallelism },
+                assemblyPath =>
+                {
+                    if (!File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")))
+                    {
+                        return;
+                    }
+
+                    var lastWriteTime = File.GetLastWriteTimeUtc(assemblyPath);
+                    if (lastWriteTime < timeFilter)
+                    {
+                        return;
+                    }
+
+                    Logger.I.LogInfo("FindAndExecuteForEachAssembly: Running for assembly {0}. LastWriteTime: {1}.", assemblyPath, lastWriteTime.ToLocalTime());
+                    action(assemblyPath);
+                });
+        }
+
+        private static void DiscoverUnitTests(string buildOutputRoot, DateTime timeFilter)
+        {
+            var testsPerAssembly = new PerDocumentLocationTestCases();
+            FindAndExecuteForEachAssembly(
+                buildOutputRoot,
+                timeFilter,
+                (string assemblyPath) =>
+                {
+                    var asmPath = FilePath.NewFilePath(assemblyPath);
+                    var disc = new XUnitTestDiscoverer();
+                    disc.TestDiscovered.AddHandler(
+                        new FSharpHandler<TestCase>(
+                            (o, ea) =>
+                            {
+                                //var cfp = PathBuilder.rebaseCodeFilePath(rsp, FilePath.NewFilePath(ea.CodeFilePath));
+                                var cfp = FilePath.NewFilePath(ea.CodeFilePath);
+                                ea.CodeFilePath = cfp.Item;
+                                var dl = new DocumentLocation { document = cfp, line = DocumentCoordinate.NewDocumentCoordinate(ea.LineNumber) };
+                                var tests = testsPerAssembly.GetOrAdd(dl, _ => new ConcurrentBag<TestCase>());
+                                tests.Add(ea);
+                            }));
+                    disc.DiscoverTests(buildOutputRoot, FilePath.NewFilePath(assemblyPath));
+                });
+
+            var discoveredUnitTestsStore = Path.Combine(buildOutputRoot, "Z_discoveredUnitTests.xml");
+            testsPerAssembly.Serialize(FilePath.NewFilePath(discoveredUnitTestsStore));
         }
 
         private static bool ExecuteTestWithCoverageDataCollection(Func<bool> runTests, string codeCoverageStore)
